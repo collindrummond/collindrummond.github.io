@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Grid with Movable Squares</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(100, 20px);
+            grid-template-rows: repeat(100, 20px);
+            gap: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            position: relative;
+            background-color: white;
+            background-image: linear-gradient(to right, lightgrey 1px, transparent 1px), 
+                              linear-gradient(to bottom, lightgrey 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .grid-container .grid-cell {
+            background-color: white;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        .square {
+            position: absolute;
+            background-color: #ffffff;
+            border-width: 3px;
+	    border-style: solid;
+	    border-color: black;  
+            box-sizing: border-box;   /* Include the border in the element's dimensions */
+            width: 23px;              /* Total size including border */
+            height: 23px;             /* Total size including border */
+            z-index: 1000;              /* Ensure it appears above the grid lines */
+            cursor: grab;
+        }
+
+        .square.active {
+	    background-color: #bbbbff;
+            cursor: grabbing;
+        }
+
+        .add-square {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: #28a745;
+            color: white;
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        .input-container {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            display: none;
+            flex-direction: column;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            z-index: 100;
+        }
+
+        .input-container input {
+            margin-bottom: 5px;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        .input-container button {
+            padding: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="grid-container"></div>
+
+<div class="add-square">+</div>
+
+<div class="input-container">
+    <input type="number" id="widthInput" placeholder="Width (px)">
+    <input type="number" id="heightInput" placeholder="Height (px)">
+    <input type="number" id="testVar" placeholder="Other variable">
+    <button id="applySize">Apply</button>
+</div>
+
+<script>
+
+const gridContainer = document.querySelector('.grid-container');
+const addSquareBtn = document.querySelector('.add-square');
+const inputContainer = document.querySelector('.input-container');
+const widthInput = document.getElementById('widthInput');
+const heightInput = document.getElementById('heightInput');
+const applySizeBtn = document.getElementById('applySize');
+let currentSquare = null;
+let offsetX, offsetY;
+let isDragging = false; // Variable to track if dragging is in progress
+
+// Create and add a new square
+addSquareBtn.addEventListener('click', () => {
+    const square = document.createElement('div');
+    square.classList.add('square');
+    square.style.left = '-1px';
+    square.style.top = '-1px';
+
+    // Handle square click for selection
+    square.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent click event from propagating to the document
+
+        // Toggle the active state of the square
+        if (currentSquare && currentSquare !== square) {
+            currentSquare.classList.remove('active');
+            inputContainer.style.display = 'none';
+        }
+
+        if (currentSquare === square) {
+            // If the same square is clicked again, toggle off
+            currentSquare.classList.remove('active');
+            inputContainer.style.display = 'none';
+            currentSquare = null;
+        } else {
+            // Select the new square
+            currentSquare = square;
+            currentSquare.classList.add('active');
+            inputContainer.style.display = 'flex';
+            widthInput.value = parseInt(square.style.width, 10);
+            heightInput.value = parseInt(square.style.height, 10);
+        }
+    });
+
+    gridContainer.appendChild(square);
+});
+
+// Handle mouse down for dragging
+document.addEventListener('mousedown', (e) => {
+    if (currentSquare && e.target === currentSquare) {
+        const squareRect = currentSquare.getBoundingClientRect();
+        const gridRect = gridContainer.getBoundingClientRect();
+        offsetX = e.clientX - squareRect.left;
+        offsetY = e.clientY - squareRect.top;
+        isDragging = true; // Set dragging state
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault(); // Prevent default dragging behavior
+    }
+});
+
+// Handle mouse move for dragging
+function onMouseMove(e) {
+    if (currentSquare && isDragging) {
+        const gridRect = gridContainer.getBoundingClientRect();
+        let left = e.clientX - gridRect.left - offsetX;
+        let top = e.clientY - gridRect.top - offsetY;
+
+        left = Math.round(left / 20) * 20;
+        top = Math.round(top / 20) * 20;
+
+        currentSquare.style.left = `${left - 1}px`;
+        currentSquare.style.top = `${top - 1}px`;
+    }
+}
+
+// Handle mouse up for dragging
+function onMouseUp() {
+    isDragging = false; // Reset dragging state
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+}
+
+// Apply new size from input fields
+applySizeBtn.addEventListener('click', () => {
+    if (currentSquare) {
+        const width = parseInt(widthInput.value, 10);
+        const height = parseInt(heightInput.value, 10);
+
+        if (!isNaN(width) && width > 0) {
+            currentSquare.style.width = `${width + 3}px`;
+        }
+
+        if (!isNaN(height) && height > 0) {
+            currentSquare.style.height = `${height + 3}px`;
+        }
+    }
+});
+
+// Handle clicking outside to deactivate the active square
+document.addEventListener('click', (e) => {
+    if (!inputContainer.contains(e.target) && !addSquareBtn.contains(e.target)) {
+        if (currentSquare) {
+            inputContainer.style.display = 'none';
+            currentSquare.classList.remove('active');
+            currentSquare = null;
+        }
+    }
+});
+
+</script>
+
+</body>
+</html>
